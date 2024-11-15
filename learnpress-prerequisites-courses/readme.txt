@@ -2,10 +2,10 @@
 Contributors: thimpress, tungnx89, tunnhn, kendy73,leehld
 Donate link:
 Tags: lms, elearning, e-learning, learning management system, education
-Requires at least: 6.3
+Requires at least: 6.0
 Requires PHP: 7.4
-Tested up to: 6.6
-Stable tag: 4.0.7
+Tested up to: 6.7
+Stable tag: 4.0.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,13 @@ Yes, you can. Please find the documentation for writing an add-on for LearnPress
 1. LearnPress Prerequisite screenshot.
 
 == Changelog ==
+
+= 4.0.8 (2024-11-15) =
+~ Tweak use some new class UserModel, CourseModel, UserCourseModel.
+~ Tweak check condition can enroll, purchase course with new hook of LP v4.2.7.3, to show message.
+~ Tweak: use TomSelect js instead of select2.
+~ Hide with offline course.
+~ Remove global variable $lp_addon_prerequisites_courses.
 
 = 4.0.7 (2024-04-01) =
 ~ Modified: template show message.

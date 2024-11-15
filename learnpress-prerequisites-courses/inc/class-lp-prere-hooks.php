@@ -7,6 +7,10 @@
  * @author thimpress
  */
 
+use LearnPress\Models\CourseModel;
+use LearnPress\Models\UserItems\UserCourseModel;
+use LearnPress\Models\UserModel;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit; // Exit if accessed directly
 }
@@ -16,6 +20,7 @@ class LP_Prere_Course_Hooks {
 	 * @var bool|LP_User|LP_User_Guest
 	 */
 	protected $user_current;
+	public $addon;
 
 	/**
 	 * @return LP_Prere_Course_Hooks
@@ -34,7 +39,8 @@ class LP_Prere_Course_Hooks {
 	 * LP_Prere_Hooks constructor.
 	 */
 	protected function __construct() {
-		$this->user_current = learn_press_get_current_user();
+		$this->addon        = LP_Addon_Prerequisites_Courses_Preload::$addon;
+		$this->user_current = UserModel::find( get_current_user_id(), true );
 		$this->init();
 	}
 
@@ -44,13 +50,22 @@ class LP_Prere_Course_Hooks {
 		// Hook meta box
 		add_filter( 'learnpress/course/metabox/tabs', array( $this, 'add_course_metabox' ), 10, 2 );
 		// Hook check condition show message.
-		add_action( 'learn-press/course-buttons', array( $this, 'check_condition' ), 1 );
+		//add_action( 'learn-press/course-buttons', array( $this, 'check_condition' ), 1 );
 		// Hook check can enroll course
-		add_filter( 'learn-press/user/can-enroll-course', array( $this, 'can_enroll_course' ), 99, 3 );
+		add_filter( 'learn-press/user/can-enroll/course', array( $this, 'can_enroll_course' ), 10, 3 );
 		// Hook check can buy course
-		add_filter( 'learn-press/user/can-purchase-course', array( $this, 'can_purchase_course' ), 99, 3 );
+		add_filter( 'learn-press/user/can-purchase/course', array( $this, 'can_purchase_course' ), 10, 3 );
 		// Hook check can view content course
 		add_filter( 'learnpress/course/can-view-content', array( $this, 'can_view_content_course' ), 99, 3 );
+		// Hook accept message show message prerequisites course.
+		add_filter(
+			'learn-press/course/html-button-enroll/show-messages',
+			function ( $error_code_show ) {
+				$error_code_show[] = 'lp_prerequisites_course_can_not_enroll';
+
+				return $error_code_show;
+			}
+		);
 	}
 
 	/**
@@ -61,14 +76,10 @@ class LP_Prere_Course_Hooks {
 	 * @return array
 	 */
 	public function enqueue_styles( array $styles = array() ): array {
-		/**
-		 * @var LP_Addon_Prerequisites_Courses $lp_addon_prerequisites_courses
-		 */
-		global $lp_addon_prerequisites_courses;
 
-		$url = $lp_addon_prerequisites_courses->get_plugin_url( 'assets/css/lp-prerequisite-course.css' );
+		$url = $this->addon->get_plugin_url( 'assets/css/lp-prerequisite-course.min.css' );
 		if ( LP_Debug::is_debug() ) {
-			$url = $lp_addon_prerequisites_courses->get_plugin_url( 'assets/css/lp-prerequisite-course.css' );
+			$url = $this->addon->get_plugin_url( 'assets/css/lp-prerequisite-course.css' );
 		}
 
 		$styles['lp-prerequisites-courses'] = new LP_Asset_Key( $url );
@@ -76,33 +87,67 @@ class LP_Prere_Course_Hooks {
 		return $styles;
 	}
 
+	/**
+	 * Show tab and field config for course.
+	 *
+	 * @param $tabs
+	 * @param $post_id
+	 *
+	 * @return array|mixed
+	 * @since 3.0.0
+	 * @version 1.0.1
+	 */
 	public function add_course_metabox( $tabs, $post_id ) {
-		$args = array(
-			'exclude[]' => $post_id,
-			'version'   => time(), // No cache.
-		);
-
-		if ( ! is_super_admin() ) {
-			$args[] = array(
-				'user' => get_current_user_id(),
-			);
+		$course = CourseModel::find( $post_id );
+		if ( ! $course ) {
+			return $tabs;
 		}
 
-		$tabs['general']['content']['_lp_prerequisite_allow_purchase'] = new LP_Meta_Box_Checkbox_Field(
-			esc_html__( 'Allow Purchase (Prerequisite)', 'learnpress-prerequisites-courses' ),
-			esc_html__( 'Allow purchase course without finish prerequisites.', 'learnpress-prerequisites-courses' ),
-			'no'
-		);
+		if ( $course->is_offline() ) {
+			return $tabs;
+		}
 
-		$tabs['general']['content']['_lp_course_prerequisite'] = new LP_Meta_Box_Autocomplete_Field(
-			esc_html__( 'Prerequisites Courses', 'learnpress-prerequisites-courses' ),
-			esc_html__( 'Courses you have to pass before you can enroll to this course.', 'learnpress-prerequisites-courses' ),
-			array(),
-			array(
-				'placeholder' => esc_html__( 'Search courses...', 'learnpress-prerequisites-courses' ),
-				'action'      => rest_url( add_query_arg( $args, 'learnpress/v1/courses/' ) ),
-				'data'        => 'lp_course',
-			)
+		$data_struct = [
+			'urlApi'      => get_rest_url( null, 'lp/v1/admin/tools/search-course' ),
+			'dataSendApi' => [ 'id_not_in' => [ $post_id ] ],
+			'dataType'    => 'courses',
+			'keyGetValue' => [
+				'value'      => 'ID',
+				'text'       => '{{post_title}}(#{{ID}})',
+				'key_render' => [
+					'post_title' => 'post_title',
+					'ID'         => 'ID',
+				],
+			],
+			'setting'     => [
+				'placeholder' => esc_html__( 'Choose Course', 'learnpress' ),
+			],
+		];
+
+		$tabs['prerequisites'] = array(
+			'label'    => esc_html__( 'Prerequisites Course', 'learnpress-prerequisites-courses' ),
+			'target'   => 'prerequisites_course_data',
+			'icon'     => 'dashicons-excerpt-view',
+			'priority' => 80,
+			'content'  => [
+				'_lp_prerequisite_allow_purchase' => new LP_Meta_Box_Checkbox_Field(
+					esc_html__( 'Allow Purchase', 'learnpress-prerequisites-courses' ),
+					esc_html__( 'Allow purchase course without finish prerequisites.', 'learnpress-prerequisites-courses' ),
+					'no'
+				),
+				'_lp_course_prerequisite'         => new LP_Meta_Box_Select_Field(
+					esc_html__( 'Select Courses', 'learnpress' ),
+					'',
+					[],
+					array(
+						'options'           => [],
+						'style'             => 'min-width:200px;',
+						'tom_select'        => true,
+						'multiple'          => true,
+						'custom_attributes' => [ 'data-struct' => htmlentities2( json_encode( $data_struct ) ) ],
+					)
+				),
+			],
 		);
 
 		return $tabs;
@@ -112,148 +157,101 @@ class LP_Prere_Course_Hooks {
 	 * Show notice required pass prerequisites courses.
 	 *
 	 * @since 3.0.0
-	 * @version 3.0.2
-	 * @editor tungnx
+	 * @version 3.0.3
+	 * @deprecated 4.0.8
 	 */
-	public function check_condition() {
-		global $post, $lp_addon_prerequisites_courses;
+	/*public function check_condition() {
+		global $post;
 
 		$user   = $this->user_current;
-		$course = learn_press_get_course( $post->ID );
-		if ( ! $user || ! $course ) {
+		$course = CourseModel::find( $post->ID, true );
+		if ( ! $course ) {
 			return;
 		}
 
-		if ( $course->get_external_link() ) {
-			return;
-		}
-
-		$user_course = $user->get_course_data( $course->get_id() );
-
-		// Get option allow purchase course without prerequisites.
-		$allow_purchase = get_post_meta( $course->get_id(), '_lp_prerequisite_allow_purchase', true );
-		if ( 'yes' === $allow_purchase && ! $course->is_free() && ( ! $user_course || ! $user_course->is_enrolled() ) ) {
-			return;
-		}
-
-		// get prerequisites of course
-		$required_course_ids = LP_Addon_Prerequisites_Courses::get_prerequisite_courses( $post->ID );
-		if ( empty( $required_course_ids ) ) {
-			return;
-		}
-
-		$courses_not_passed = array();
-		$users_courses      = array();
-
-		foreach ( $required_course_ids as $required_course_id ) {
-			if ( empty( $required_course_id ) ) {
-				continue;
-			}
-
-			$data = new stdClass();
-			$data->course   = learn_press_get_course( $required_course_id );
-			if ( ! $data->course ) {
-				continue;
-			}
-
-			$user_course         = $user->get_course_data( $required_course_id );
-			$data->user_course   = $user_course;
-			if ( ! $user_course || 'passed' !== $user_course->get_graduation() ) {
-				$courses_not_passed[] = $required_course_id;
-			}
-
-			$users_courses[] = $data;
-		}
-
-		if ( empty( $courses_not_passed ) ) {
+		$can_enroll = $this->addon->check_condition( $course, $user );
+		if ( ! $can_enroll instanceof WP_Error ) {
 			return;
 		}
 
 		// Remove buttons course.
 		remove_all_actions( 'learn-press/course-buttons' );
-
-		$lp_addon_prerequisites_courses->get_template( 'prerequisites-message', compact( 'users_courses' ) );
-	}
+	}*/
 
 	/**
 	 * Hook check can enroll course.
 	 *
-	 * @param $flag
-	 * @param LP_Course $course
-	 * @param bool      $return_bool
+	 * @param true|WP_Error $can_enroll
+	 * @param CourseModel $course
+	 * @param false|UserModel $user
 	 *
-	 * @return false|mixed
+	 * @return true|WP_Error
+	 * @since 4.0.8
+	 * @version 1.0.0
 	 */
-	public function can_enroll_course( $flag, LP_Course $course, bool $return_bool ) {
-		$user = $this->user_current;
-
-		if ( ! $user ) {
-			return $flag;
+	public function can_enroll_course( $can_enroll, $course, $user ) {
+		$user_id = 0;
+		if ( $user instanceof UserModel ) {
+			$user_id = $user->get_id();
 		}
 
-		$course_id = $course->get_id();
-
-		$required_course_ids = LP_Addon_Prerequisites_Courses::get_prerequisite_courses( $course_id );
-		foreach ( $required_course_ids as $required_course_id ) {
-			$course_data = $user->get_course_data( $required_course_id );
-
-			if ( ! $course_data || 'passed' !== $course_data->get_graduation() ) {
-				if ( $return_bool ) {
-					$flag = false;
-				} else {
-					$flag->check   = false;
-					$flag->message = sprintf( '%s %s', __( 'You not passed course ', 'learnpress-prerequisites-courses' ), get_the_title( $required_course_id ) );
-				}
-				break;
-			}
+		// Skip check course not free and allow purchase course without finish prerequisites.
+		$userCourse = UserCourseModel::find( $user_id, $course->get_id(), true );
+		if ( ! $course->is_free() && $this->addon->is_allow_purchase_course( $course )
+		&& ! $userCourse ) {
+			return $can_enroll;
 		}
 
-		return $flag;
+		if ( $course->has_no_enroll_requirement() ) {
+			return $can_enroll;
+		}
+
+		$pass_condition = $this->addon->check_condition( $course, $user );
+		if ( ! $pass_condition ) {
+			$html_message = $this->addon->html_prerequisite_courses( $course, $user );
+
+			$can_enroll = new WP_Error( 'lp_prerequisites_course_can_not_enroll', $html_message );
+		}
+
+		return $can_enroll;
 	}
 
 	/**
 	 * Hook check can buy course.
 	 *
-	 * @param mixed|bool $purchasable
-	 * @param $user_id
-	 * @param $course_id
+	 * @param $can_purchase
+	 * @param CourseModel $course
+	 * @param UserModel|false $user
 	 *
-	 * @return bool|mixed
+	 * @return true|WP_Error
+	 * @since 4.0.8
+	 * @version 1.0.0
 	 */
-	public function can_purchase_course( $can_purchase, $user_id, $course_id ) {
+	public function can_purchase_course( $can_purchase, $course, $user ) {
 		if ( ! $can_purchase ) {
 			return $can_purchase;
 		}
 
 		try {
-			$user   = learn_press_get_user( $user_id );
-			$course = learn_press_get_course( $course_id );
-			if ( ! $user || ! $course ) {
-				return $can_purchase;
+			$user_id = 0;
+			if ( $user instanceof UserModel ) {
+				$user_id = $user->get_id();
 			}
 
-			$required_course_ids = LP_Addon_Prerequisites_Courses::get_prerequisite_courses( $course_id );
 			// Get option allow purchase course without prerequisite
-			$allow_purchase   = get_post_meta( $course_id, '_lp_prerequisite_allow_purchase', true );
-			$allow_repurchase = $course->allow_repurchase();
+			$allow_purchase   = $this->addon->is_allow_purchase_course( $course );
+			$allow_repurchase = $course->enable_allow_repurchase();
 
-			if ( 'yes' === $allow_purchase ) {
-				// For case repurchase course
-				if ( $user->has_purchased_course( $course_id ) ) {
-					if ( ! empty( $allow_repurchase ) && $allow_repurchase == 'yes' ) {
-						if ( $user->has_passed_course( $course_id ) ) {
-							$can_purchase = true;
-						}
+			// For case repurchase course
+			if ( $allow_purchase ) {
+				$userCourse = UserCourseModel::find( $user_id, $course->get_id(), true );
+				if ( $userCourse && $userCourse->has_purchased() && $allow_repurchase ) {
+					if ( $userCourse->is_passed() ) {
+						$can_purchase = true;
 					}
 				}
-			} else {
-				foreach ( $required_course_ids as $required_course_id ) {
-					$course_data = $user->get_course_data( $required_course_id );
-					if ( ! $course_data || 'passed' !== $course_data->get_graduation() ) {
-						$can_purchase = false;
-						break;
-					}
-				}
+			} elseif ( ! $this->addon->check_condition( $course, $user ) ) {
+				$can_purchase = new WP_Error( '', '' );
 			}
 		} catch ( Throwable $e ) {
 			error_log( $e->getMessage() );
@@ -266,15 +264,15 @@ class LP_Prere_Course_Hooks {
 	 * Filer user can view content course condition.
 	 *
 	 * @param LP_Model_User_Can_View_Course_Item $view
-	 * @param int                                $user_id
-	 * @param LP_Course                          $course
+	 * @param int $user_id
+	 * @param LP_Course $course
 	 *
 	 * @return LP_Model_User_Can_View_Course_Item
 	 * @since 4.0.0
-	 * @version 1.0.1
+	 * @version 1.0.2
 	 */
 	public function can_view_content_course( LP_Model_User_Can_View_Course_Item $view, int $user_id, LP_Course $course ) {
-		$user = learn_press_get_user( $user_id );
+		$user = UserModel::find( $user_id );
 		if ( ! $user ) {
 			return $view;
 		}
@@ -283,8 +281,8 @@ class LP_Prere_Course_Hooks {
 		$required_course_ids = LP_Addon_Prerequisites_Courses::get_prerequisite_courses( $course_id );
 
 		foreach ( $required_course_ids as $required_course_id ) {
-			$course_data = $user->get_course_data( $required_course_id );
-			if ( ! $course_data || 'passed' !== $course_data->get_graduation() ) {
+			$course_data = UserCourseModel::find( $user_id, $required_course_id, true );
+			if ( ! $course_data || ! $course_data->is_passed() ) {
 				$view->flag    = false;
 				$view->message = __(
 					'This content is protected, please pass the prerequisites course(s) to view this content!',
