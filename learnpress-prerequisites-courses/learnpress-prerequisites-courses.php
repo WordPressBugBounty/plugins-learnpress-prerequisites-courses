@@ -1,15 +1,15 @@
 <?php
 /**
  * Plugin Name: LearnPress - Prerequisites Courses
- * Plugin URI: http://thimpress.com/learnpress
+ * Plugin URI: https://thimpress.com/product/learnpress-prerequisites-courses/
  * Description: Course you have to finish before you can enroll to this course.
  * Author: ThimPress
- * Version: 4.0.8
+ * Version: 4.0.9
  * Author URI: http://thimpress.com
  * Tags: learnpress, lms, add-on, prerequisites courses
  * Text Domain: learnpress-prerequisites-courses
  * Domain Path: /languages/
- * Require_LP_Version: 4.2.7.3-beta.0
+ * Require_LP_Version: 4.3.2.7
  *
  * @package learnpress-prerequisites
  */
@@ -17,10 +17,13 @@
 /**
  * Prevent loading this file directly
  */
+
+use LearnPress\Prerequisite\PrerequisiteHook;
+
 defined( 'ABSPATH' ) || exit();
 
 const LP_ADDON_PREREQUISITES_COURSES_FILE = __FILE__;
-define( 'LP_ADDON_PREREQUISITES_COURSES_PATH', dirname( __FILE__ ) );
+const LP_ADDON_PREREQUISITES_COURSES_PATH = __DIR__;
 
 /**
  * Class LP_Addon_Prerequisites_Courses_Preload
@@ -34,6 +37,20 @@ class LP_Addon_Prerequisites_Courses_Preload {
 	 * @var LP_Addon_Prerequisites_Courses $addon
 	 */
 	public static $addon;
+
+	/**
+	 * Singleton.
+	 *
+	 * @return LP_Addon_Course_Review_Preload|mixed
+	 */
+	public static function instance() {
+		static $instance;
+		if ( is_null( $instance ) ) {
+			$instance = new self();
+		}
+
+		return $instance;
+	}
 
 	/**
 	 * LP_Addon_Prerequisites_Courses_Preload constructor.
@@ -77,8 +94,10 @@ class LP_Addon_Prerequisites_Courses_Preload {
 	 * Load addon
 	 */
 	public function load() {
-		self::$addon = LP_Addon::load( 'LP_Addon_Prerequisites_Courses', 'inc/load.php', __FILE__ );
-		LP_Prere_Course_Hooks::get_instance();
+		include_once LP_ADDON_PREREQUISITES_COURSES_PATH . '/vendor/autoload.php';
+		include_once LP_ADDON_PREREQUISITES_COURSES_PATH . '/inc/load.php';
+		self::$addon = LP_Addon_Prerequisites_Courses::instance();
+		PrerequisiteHook::get_instance();
 	}
 
 	/**
@@ -93,4 +112,4 @@ class LP_Addon_Prerequisites_Courses_Preload {
 	}
 }
 
-new LP_Addon_Prerequisites_Courses_Preload();
+LP_Addon_Prerequisites_Courses_Preload::instance();

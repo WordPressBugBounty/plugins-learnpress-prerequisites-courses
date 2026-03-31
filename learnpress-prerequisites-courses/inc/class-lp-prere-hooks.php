@@ -5,6 +5,7 @@
  * @since 4.0.6
  * @version  1.0.0
  * @author thimpress
+ * @depreacted 4.0.9
  */
 
 use LearnPress\Models\CourseModel;
@@ -76,10 +77,9 @@ class LP_Prere_Course_Hooks {
 	 * @return array
 	 */
 	public function enqueue_styles( array $styles = array() ): array {
-
-		$url = $this->addon->get_plugin_url( 'assets/css/lp-prerequisite-course.min.css' );
+		$url = $this->addon->get_plugin_url( 'assets/dist/css/lp-prerequisite-course.min.css' );
 		if ( LP_Debug::is_debug() ) {
-			$url = $this->addon->get_plugin_url( 'assets/css/lp-prerequisite-course.css' );
+			$url = $this->addon->get_plugin_url( 'assets/dist/css/lp-prerequisite-course.css' );
 		}
 
 		$styles['lp-prerequisites-courses'] = new LP_Asset_Key( $url );
@@ -228,7 +228,7 @@ class LP_Prere_Course_Hooks {
 	 * @version 1.0.0
 	 */
 	public function can_purchase_course( $can_purchase, $course, $user ) {
-		if ( ! $can_purchase ) {
+		if ( ! $can_purchase || is_wp_error( $can_purchase ) ) {
 			return $can_purchase;
 		}
 

@@ -4,7 +4,7 @@
  *
  * @author   ThimPress
  * @package  LearnPress/Prerequisites-Courses/Classes
- * @version  3.0.1
+ * @version  3.0.2
  */
 
 // Prevent loading this file directly
@@ -20,6 +20,15 @@ if ( ! class_exists( 'LP_Addon_Prerequisites_Courses' ) ) {
 	 * Class LP_Addon_Prerequisites_Courses
 	 */
 	class LP_Addon_Prerequisites_Courses extends LP_Addon {
+		public static function instance() {
+			static $instance = false;
+			if ( ! $instance ) {
+				$instance = new self();
+			}
+
+			return $instance;
+		}
+
 
 		/**
 		 * @var string
@@ -54,7 +63,6 @@ if ( ! class_exists( 'LP_Addon_Prerequisites_Courses' ) ) {
 		 * @since 3.0.0
 		 */
 		protected function _includes() {
-			require_once LP_ADDON_PREREQUISITES_COURSES_PATH . '/inc/class-lp-prere-hooks.php';
 		}
 
 		/**
@@ -207,5 +215,3 @@ if ( ! class_exists( 'LP_Addon_Prerequisites_Courses' ) ) {
 		}
 	}
 }
-
-add_action( 'plugins_loaded', array( 'LP_Addon_Prerequisites_Courses', 'instance' ) );
