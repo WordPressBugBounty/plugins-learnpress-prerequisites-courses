@@ -4,8 +4,8 @@ Donate link:
 Tags: lms, elearning, e-learning, learning management system, education
 Requires at least: 6.0
 Requires PHP: 7.4
-Tested up to: 6.9
-Stable tag: 4.0.9
+Tested up to: 7.0.2
+Stable tag: 4.1.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -54,6 +54,9 @@ Yes, you can. Please find the documentation for writing an add-on for LearnPress
 1. LearnPress Prerequisite screenshot.
 
 == Changelog ==
+
+= 4.1.0 (2026-08-04) =
+~ Update code.
 
 = 4.0.9 (2026-03-31) =
 ~ Optimize code.

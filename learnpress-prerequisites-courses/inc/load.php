@@ -96,11 +96,13 @@ if ( ! class_exists( 'LP_Addon_Prerequisites_Courses' ) ) {
 		 * @param CourseModel $course
 		 * @param $user
 		 *
-		 * @return bool
+		 * @return bool|WP_Error
 		 * @since 4.0.8
-		 * @version 1.0.0
+		 * @version 1.0.1
 		 */
-		public function check_condition( CourseModel $course, $user ): bool {
+		public function check_condition( CourseModel $course, $user ) {
+			$error_code = '';
+
 			try {
 				$required_course_ids = self::get_prerequisite_courses( $course->get_id() );
 				if ( empty( $required_course_ids ) ) {
@@ -121,14 +123,15 @@ if ( ! class_exists( 'LP_Addon_Prerequisites_Courses' ) ) {
 
 					$userCourseCheck = UserCourseModel::find( $user_id, $required_course_id, true );
 					if ( ! $user_id || ! $userCourseCheck || ! $userCourseCheck->is_passed() ) {
+						$error_code = 'course_has_prerequisite_courses_not_passed';
 						throw new Exception( esc_html__( 'Course has prerequisite courses not passed', 'learnpress-prerequisites-courses' ) );
 					}
 				}
-
-				return true;
 			} catch ( Throwable $e ) {
-				return false;
+				return new WP_Error( $error_code, $e->getMessage() );
 			}
+
+			return true;
 		}
 
 		/**

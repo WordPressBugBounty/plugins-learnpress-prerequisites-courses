@@ -4,18 +4,14 @@
  * Plugin URI: https://thimpress.com/product/learnpress-prerequisites-courses/
  * Description: Course you have to finish before you can enroll to this course.
  * Author: ThimPress
- * Version: 4.0.9
+ * Version: 4.1.0
  * Author URI: http://thimpress.com
  * Tags: learnpress, lms, add-on, prerequisites courses
  * Text Domain: learnpress-prerequisites-courses
  * Domain Path: /languages/
- * Require_LP_Version: 4.3.2.7
+ * Require_LP_Version: 4.4.4
  *
  * @package learnpress-prerequisites
- */
-
-/**
- * Prevent loading this file directly
  */
 
 use LearnPress\Prerequisite\PrerequisiteHook;
@@ -77,14 +73,16 @@ class LP_Addon_Prerequisites_Courses_Preload {
 		if ( ! is_plugin_active( 'learnpress/learnpress.php' ) ) {
 			add_action( 'admin_notices', array( $this, 'show_note_errors_require_lp' ) );
 
-			deactivate_plugins( LP_ADDON_PREREQUISITES_COURSES_BASENAME );
+			/*deactivate_plugins( LP_ADDON_PREREQUISITES_COURSES_BASENAME );
 
 			if ( isset( $_GET['activate'] ) ) {
 				unset( $_GET['activate'] );
-			}
+			}*/
 
 			return;
 		}
+
+		include_once LP_ADDON_PREREQUISITES_COURSES_PATH . '/vendor/autoload.php';
 
 		// Sure LP loaded.
 		add_action( 'learn-press/ready', array( $this, 'load' ) );
@@ -94,7 +92,6 @@ class LP_Addon_Prerequisites_Courses_Preload {
 	 * Load addon
 	 */
 	public function load() {
-		include_once LP_ADDON_PREREQUISITES_COURSES_PATH . '/vendor/autoload.php';
 		include_once LP_ADDON_PREREQUISITES_COURSES_PATH . '/inc/load.php';
 		self::$addon = LP_Addon_Prerequisites_Courses::instance();
 		PrerequisiteHook::get_instance();

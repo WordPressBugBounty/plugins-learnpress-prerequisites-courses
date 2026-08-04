@@ -191,7 +191,7 @@ class PrerequisiteHook {
 		}
 
 		$pass_condition = $this->addon->check_condition( $course, $user );
-		if ( ! $pass_condition ) {
+		if ( $pass_condition instanceof WP_Error ) {
 			$html_message = $this->addon->html_prerequisite_courses( $course, $user );
 
 			$can_enroll = new WP_Error( 'lp_prerequisites_course_can_not_enroll', $html_message );
@@ -209,7 +209,7 @@ class PrerequisiteHook {
 	 *
 	 * @return true|WP_Error
 	 * @since 4.0.8
-	 * @version 1.0.0
+	 * @version 1.0.1
 	 */
 	public function can_purchase_course( $can_purchase, $course, $user ) {
 		if ( ! $can_purchase || is_wp_error( $can_purchase ) ) {
@@ -234,7 +234,7 @@ class PrerequisiteHook {
 						$can_purchase = true;
 					}
 				}
-			} elseif ( ! $this->addon->check_condition( $course, $user ) ) {
+			} elseif ( $this->addon->check_condition( $course, $user ) instanceof WP_Error ) {
 				$can_purchase = new WP_Error( '', '' );
 			}
 		} catch ( Throwable $e ) {

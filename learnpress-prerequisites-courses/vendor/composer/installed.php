@@ -3,7 +3,7 @@
         'name' => 'learnpress-prerequisites-courses/learnpress-prerequisites-courses',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '74d7cb4bbaa5c24897f8a68ff983ee50729d345f',
+        'reference' => 'a5f90449f78f6bf86bfb253c5e023e2adbef9be1',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'learnpress-prerequisites-courses/learnpress-prerequisites-courses' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '74d7cb4bbaa5c24897f8a68ff983ee50729d345f',
+            'reference' => 'a5f90449f78f6bf86bfb253c5e023e2adbef9be1',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
